@@ -1,0 +1,232 @@
+// import { useState } from "react";
+// import Web3 from "web3";
+// const WalletConnector = () => {
+//   const [walletAddress, setWalletAddress] = useState("Not connected");
+//   const [isConnected, setIsConnected] = useState(false);
+//   const [balance, setBalance] = useState<string | null>(null);
+
+//   const connectWallet = async () => {
+//     // Check if MetaMask is installed
+//     if (typeof window.ethereum !== "undefined") {
+//       try {
+//         const accounts = await (window.ethereum?.request({
+//           method: "eth_requestAccounts",
+//         }) as Promise<string[]>);
+//         if (accounts.length > 0) {
+//           const account = accounts[0];
+//           setWalletAddress(account);
+//           setIsConnected(true);
+
+//           // Initialize Web3
+//           const web3 = new Web3(window.ethereum);
+//           const balanceWei = await web3.eth.getBalance(account);
+//           const balanceBNB = web3.utils.fromWei(balanceWei, "ether");
+//           setBalance(balanceBNB);
+//         } else {
+//           setWalletAddress("Please install MetaMask!");
+//         }
+//       } catch (error) {
+//         console.error("Connection failed:", error);
+//         setWalletAddress("Connection failed. Please try again.");
+//       }
+//     }
+
+//     // const account = accounts[0]; // Get the first account
+//   };
+
+//   return (
+//     <div>
+//       <h1>Connect Your Wallet</h1>
+//       <button onClick={connectWallet} disabled={isConnected}>
+//         {isConnected ? "Connected" : "Connect Wallet"}
+//       </button>
+//       <p>Wallet Address: {walletAddress}</p>
+//       <p>Balance: {balance}</p>
+//     </div>
+//   );
+// };
+
+// export default WalletConnector;
+
+
+
+
+
+
+
+
+
+
+
+import { useState, useEffect } from "react";
+import Web3 from "web3";
+
+const WalletConnector = () => {
+  // State for wallet address, connection status, balance, and currency symbol.
+  const [walletAddress, setWalletAddress] = useState("Not connected");
+  const [isConnected, setIsConnected] = useState(false);
+  const [balance, setBalance] = useState<string | null>(null);
+  const [currencySymbol, setCurrencySymbol] = useState("Unknown"); // default for BSC Testnet
+
+  // Mapping from chain IDs (returned as hexadecimal strings) to currency symbols.
+  const chainIdToCurrencySymbol: { [key: string]: string } = {
+    "0x1": "ETH", // Ethereum Mainnet
+    "0x38": "BNB", // Binance Smart Chain Mainnet
+    "0x61": "TBNB", // Binance Smart Chain Testnet
+    "0x89": "MATIC", // Polygon Mainnet
+    "0xe708": "LINA",
+  };
+
+  // Update the currency symbol based on the chain ID.
+  const updateCurrencySymbol = (chainId: string) => {
+    const symbol = chainIdToCurrencySymbol[chainId] || "Unknown";
+    setCurrencySymbol(symbol);
+  };
+
+  // This function handles network changes triggered by MetaMask.
+  const handleNetworkChange = async () => {
+    if (window.ethereum) {
+      // Get the current chain ID.
+      //   const chainId = await window.ethereum.request({ method: "eth_chainId" });
+      const chainId = (await window.ethereum.request({
+        method: "eth_chainId",
+      })) as string;
+      // console.log("I'am Hero ", chainId)
+      updateCurrencySymbol(chainId);
+
+      // If wallet is already connected, update the balance too.
+      if (
+        walletAddress !== "Not connected" &&
+        walletAddress !== "Connection failed. Please try again." &&
+        walletAddress !== "Please install MetaMask!"
+      ) {
+        const web3 = new Web3(window.ethereum);
+        const balanceWei = await web3.eth.getBalance(walletAddress);
+        const balanceConverted = web3.utils.fromWei(balanceWei, "ether");
+        setBalance(balanceConverted);
+      }
+    }
+  };
+
+  // Listen for chain/network changes using useEffect.
+  useEffect(() => {
+    if (window.ethereum) {
+      window.ethereum.on("chainChanged", handleNetworkChange);
+      // Initialize the currency symbol when the component mounts.
+      handleNetworkChange();
+    }
+    return () => {
+      if (window.ethereum) {
+        window.ethereum.removeListener("chainChanged", handleNetworkChange);
+      }
+    };
+    // we re-run the effect (optional depending on your needs).
+  });
+
+  // Connect to MetaMask, fetch wallet address and balance, and update currency symbol.
+  const connectWallet = async () => {
+    if (typeof window.ethereum !== "undefined") {
+      try {
+        const accounts = await (window.ethereum.request({
+          method: "eth_requestAccounts",
+        }) as Promise<string[]>);
+        if (accounts.length > 0) {
+          const account = accounts[0];
+          setWalletAddress(account);
+          setIsConnected(true);
+
+          // Update currency symbol based on the current network.
+          // const chainId = await window.ethereum.request({
+          //   method: "eth_chainId",
+          // }) as string;
+          // updateCurrencySymbol(chainId);
+
+          // Initialize Web3 and fetch the account balance.
+          // const web3 = new Web3(window.ethereum);
+          // const balanceWei = await web3.eth.getBalance(account);
+          // const balanceBNB = web3.utils.fromWei(balanceWei, "ether");
+          // setBalance(balanceBNB);
+        } else {
+          setWalletAddress("Please install MetaMask!");
+        }
+      } catch (error) {
+        console.error("Connection failed:", error);
+        setWalletAddress("Connection failed. Please try again.");
+      }
+    }
+  };
+
+  return (
+    <div>
+      <h1>Connect Your Wallet</h1>
+      <button onClick={connectWallet} disabled={isConnected}>
+        {isConnected ? "Connected" : "Connect Wallet"}
+      </button>
+      <p>Wallet Address: {walletAddress}</p>
+      <p>
+        Balance: {balance} {currencySymbol}
+      </p>
+    </div>
+  );
+};
+
+export default WalletConnector;
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+// import React, { useState } from 'react';
+// import Web3 from 'web3';
+
+// const WalletConnector = () => {
+//   const [account, setAccount] = useState(null);
+//   const [balance, setBalance] = useState(null);
+
+//   const connectWallet = async () => {
+//     if (window.ethereum) {
+//       try {
+//         // Request account access
+//         const accounts = await window.ethereum.request({ method: 'eth_requestAccounts' });
+//         const account = accounts[0];
+//         setAccount(account);
+
+//         // Initialize Web3
+//         const web3 = new Web3(window.ethereum);
+
+//         // Fetch balance
+//         const balanceWei = await web3.eth.getBalance(account);
+//         const balanceBNB = web3.utils.fromWei(balanceWei, 'ether');
+//         setBalance(balanceBNB);
+//       } catch (error) {
+//         console.error('Connection failed:', error);
+//       }
+//     } else {
+//       alert('Please install MetaMask!');
+//     }
+//   };
+
+//   return (
+//     <div>
+//       <h1>Connect Your Wallet</h1>
+//       <button onClick={connectWallet}>Connect Wallet</button>
+//       {account && (
+//         <div>
+//           <p>Wallet Address: {account}</p>
+//           <p>Balance: {balance} BNB</p>
+//         </div>
+//       )}
+//     </div>
+//   );
+// };
+
+// export default WalletConnector;
