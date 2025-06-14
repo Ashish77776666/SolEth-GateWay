@@ -71,7 +71,7 @@ const WalletConnector = () => {
           setWalletAddress("Please install MetaMask!");
         }
       } catch (error) {
-        console.error("Connection failed:", error);
+        // console.error("Connection failed:", error);
         setWalletAddress("Connection failed. Please try again.");
       }
     }
@@ -86,7 +86,7 @@ const WalletConnector = () => {
 
     const web3 = new Web3(window.ethereum);
     const accounts = await web3.eth.getAccounts();
-    console.log(accounts)
+    // console.log(accounts)
     const sender = accounts[0];
 
     try {
@@ -97,7 +97,7 @@ const WalletConnector = () => {
         value,
       });
       // setTransactionHash(tx.transactionHash);
-      console.log(tx.transactionHash)
+      // console.log(tx.transactionHash)
       const hashString = Web3.utils.bytesToHex(tx.transactionHash);
       setTransactionHash(hashString);
 
@@ -113,7 +113,7 @@ const WalletConnector = () => {
       handleNetworkChange(); // Refresh balance
       alert("Transaction successful and recorded.");
     } catch (error) {
-      console.error("Transaction failed:", error);
+      // console.error("Transaction failed:", error);
       alert("Transaction failed.");
     }
   };
