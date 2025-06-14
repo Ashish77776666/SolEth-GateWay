@@ -96,7 +96,7 @@ const WalletConnector = () => {
         to: recipient,
         value,
       });
-      // setTransactionHash(tx.transactionHash);
+      setTransactionHash(tx.transactionHash);
       // console.log(tx.transactionHash)
       const hashString = Web3.utils.bytesToHex(tx.transactionHash);
       setTransactionHash(hashString);
