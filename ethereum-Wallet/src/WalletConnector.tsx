@@ -9,8 +9,8 @@ const WalletConnector = () => {
   const [balance, setBalance] = useState<string | null>(null);
   const [currencySymbol, setCurrencySymbol] = useState("Unknown");
   const [recipient, setRecipient] = useState("");
-  const [transactionHash, setTransactionHash] = useState("");
   const [amount, setAmount] = useState("");
+  const [transactionHash, setTransactionHash] = useState<string | null>(null);
 
   const chainIdToCurrencySymbol: { [key: string]: string } = {
     "0x1": "ETH",
@@ -21,27 +21,19 @@ const WalletConnector = () => {
   };
 
   const updateCurrencySymbol = (chainId: string) => {
-    const symbol = chainIdToCurrencySymbol[chainId] || "Unknown";
-    setCurrencySymbol(symbol);
-  }
+    setCurrencySymbol(chainIdToCurrencySymbol[chainId] || "Unknown");
+  };
 
   const handleNetworkChange = async () => {
-    if (window.ethereum) {
-      if (
-        walletAddress !== "Not connected" &&
-        walletAddress !== "Connection failed. Please try again." &&
-        walletAddress !== "Please install MetaMask!"
-      ) {
-        const chainId = (await window.ethereum.request({
-          method: "eth_chainId",
-        })) as string;
-        updateCurrencySymbol(chainId);
+    if (window.ethereum && walletAddress.startsWith("0x")) {
+      const chainId = (await window.ethereum.request({
+        method: "eth_chainId",
+      })) as string;
+      updateCurrencySymbol(chainId);
 
-        const web3 = new Web3(window.ethereum);
-        const balanceWei = await web3.eth.getBalance(walletAddress);
-        const balanceConverted = web3.utils.fromWei(balanceWei, "ether");
-        setBalance(balanceConverted);
-      }
+      const web3 = new Web3(window.ethereum);
+      const balanceWei = await web3.eth.getBalance(walletAddress);
+      setBalance(web3.utils.fromWei(balanceWei, "ether"));
     }
   };
 
@@ -51,33 +43,29 @@ const WalletConnector = () => {
       handleNetworkChange();
     }
     return () => {
-      if (window.ethereum) {
-        window.ethereum.removeListener("chainChanged", handleNetworkChange);
-      }
+      window.ethereum?.removeListener("chainChanged", handleNetworkChange);
     };
-  });
+  }, [walletAddress]);
 
   const connectWallet = async () => {
-    if (typeof window.ethereum !== "undefined") {
-      try {
-        const accounts = await (window.ethereum.request({
-          method: "eth_requestAccounts",
-        }) as Promise<string[]>);
-        if (accounts.length > 0) {
-          const account = accounts[0];
-          setWalletAddress(account);
-          setIsConnected(true);
-        } else {
-          setWalletAddress("Please install MetaMask!");
-        }
-      } catch (error) {
-        // console.error("Connection failed:", error);
-        setWalletAddress("Connection failed. Please try again.");
+    if (!window.ethereum) {
+      setWalletAddress("Please install MetaMask!");
+      return;
+    }
+    try {
+      const accounts = (await window.ethereum.request({
+        method: "eth_requestAccounts",
+      })) as string[];
+      if (accounts.length) {
+        setWalletAddress(accounts[0]);
+        setIsConnected(true);
       }
+    } catch {
+      setWalletAddress("Connection failed. Please try again.");
     }
   };
 
-  const handleTransfer = async (e: React.FormEvent<HTMLFormElement>) => {
+  const handleTransfer = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!window.ethereum) {
       alert("Please install MetaMask to use this feature.");
@@ -85,35 +73,30 @@ const WalletConnector = () => {
     }
 
     const web3 = new Web3(window.ethereum);
-    const accounts = await web3.eth.getAccounts();
-    // console.log(accounts)
-    const sender = accounts[0];
+    const [sender] = await web3.eth.getAccounts();
 
     try {
       const value = web3.utils.toWei(amount, "ether");
-      const tx = await web3.eth.sendTransaction({
-        from: sender,
-        to: recipient,
-        value,
-      });
-      setTransactionHash(tx.transactionHash);
-      // console.log(tx.transactionHash)
-      const hashString = Web3.utils.bytesToHex(tx.transactionHash);
-      setTransactionHash(hashString);
+      const tx = await web3.eth.sendTransaction({ from: sender, to: recipient, value });
 
-      // Send transaction details to the backend
+      // directly set the hash
+      setTransactionHash(tx.transactionHash);
+
+      // send details to backend
       await axios.post("http://localhost:1001/api/transactions", {
         sender,
         recipient,
         amount,
         transactionHash: tx.transactionHash,
       });
-      setAmount(""); // Clear amount field
-      setRecipient(""); // Clear recipient field
-      handleNetworkChange(); // Refresh balance
+
+      // reset form + refresh balance
+      setAmount("");
+      setRecipient("");
+      handleNetworkChange();
+
       alert("Transaction successful and recorded.");
-    } catch (error) {
-      // console.error("Transaction failed:", error);
+    } catch {
       alert("Transaction failed.");
     }
   };
@@ -124,17 +107,16 @@ const WalletConnector = () => {
       <button onClick={connectWallet} disabled={isConnected}>
         {isConnected ? "Connected" : "Connect Wallet"}
       </button>
+
       <p>Wallet Address: {walletAddress}</p>
-      <p>
-        Balance: {balance} {currencySymbol}
-      </p>
+      <p>Balance: {balance ?? "--"} {currencySymbol}</p>
 
       <form
         onSubmit={handleTransfer}
         className={classNames("etrAmnt", { hidden: !isConnected })}
       >
         <div>
-          <label>Enter amount to transfer :</label>
+          <label>Enter amount to transfer:</label>
           <input
             type="text"
             value={amount}
@@ -151,10 +133,15 @@ const WalletConnector = () => {
             required
           />
         </div>
-        <button className="button2" type="submit">
-          Transfer
-        </button>
+        <button type="submit">Transfer</button>
       </form>
+
+      {/* Render the transaction hash so it's “used” */}
+      {transactionHash && (
+        <p>
+          <strong>Transaction Hash:</strong> {transactionHash}
+        </p>
+      )}
     </div>
   );
 };
