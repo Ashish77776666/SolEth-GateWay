@@ -65,41 +65,45 @@ const WalletConnector = () => {
     }
   };
 
-  const handleTransfer = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!window.ethereum) {
-      alert("Please install MetaMask to use this feature.");
-      return;
-    }
+  // at the top of your component
+const [transactionHash, setTransactionHash] = useState<string | null>(null);
 
-    const web3 = new Web3(window.ethereum);
-    const [sender] = await web3.eth.getAccounts();
+// …
 
-    try {
-      const value = web3.utils.toWei(amount, "ether");
-      const tx = await web3.eth.sendTransaction({ from: sender, to: recipient, value });
+const handleTransfer = async (e: React.FormEvent) => {
+  e.preventDefault();
+  const web3 = new Web3(window.ethereum);
+  const [sender] = await web3.eth.getAccounts();
 
-      // directly set the hash
-      setTransactionHash(tx.transactionHash);
+  try {
+    const value = web3.utils.toWei(amount, "ether");
+    const tx = await web3.eth.sendTransaction({ from: sender, to: recipient, value });
 
-      // send details to backend
-      await axios.post("http://localhost:1001/api/transactions", {
-        sender,
-        recipient,
-        amount,
-        transactionHash: tx.transactionHash,
-      });
+    // normalize the hash into a string
+    const hashHex: string =
+      typeof tx.transactionHash === "string"
+        ? tx.transactionHash
+        : Web3.utils.bytesToHex(tx.transactionHash as Uint8Array);
 
-      // reset form + refresh balance
-      setAmount("");
-      setRecipient("");
-      handleNetworkChange();
+    setTransactionHash(hashHex);
 
-      alert("Transaction successful and recorded.");
-    } catch {
-      alert("Transaction failed.");
-    }
-  };
+    await axios.post("http://localhost:1001/api/transactions", {
+      sender,
+      recipient,
+      amount,
+      transactionHash: hashHex,
+    });
+
+    // reset form + refresh balance
+    setAmount("");
+    setRecipient("");
+    handleNetworkChange();
+    alert("Transaction successful and recorded.");
+  } catch {
+    alert("Transaction failed.");
+  }
+};
+
 
   return (
     <div>
