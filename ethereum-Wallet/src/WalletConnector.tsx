@@ -66,7 +66,6 @@ const WalletConnector = () => {
   };
 
   // at the top of your component
-const [transactionHash, setTransactionHash] = useState<string | null>(null);
 
 // …
 
