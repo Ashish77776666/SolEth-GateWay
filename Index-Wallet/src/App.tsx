@@ -9,10 +9,10 @@ function App() {
   return (
     <>
       <div>
-        <a href="http://localhost:2000/" >
+        <a href="https://solanawalletwebsite.netlify.app/" >
           <img src={viteLogo} className="logo" alt="Vite logo" />
         </a>
-        <a href="http://localhost:1000/" >
+        <a href="https://etheriumwebsite.netlify.app/" >
           <img src={reactLogo} className="logo react" alt="React logo" />
         </a>
       </div>
