@@ -1,28 +1,36 @@
 import React, { useState, useEffect, useCallback, useMemo } from "react";
-import { Connection, PublicKey, SystemProgram, Transaction, LAMPORTS_PER_SOL } from "@solana/web3.js";
+import {
+  Connection,
+  PublicKey,
+  SystemProgram,
+  Transaction,
+  LAMPORTS_PER_SOL,
+} from "@solana/web3.js";
 import classNames from "classnames";
 import axios from "axios";
 import { Buffer } from "buffer";
 
 // Polyfill Buffer globally
 window.Buffer = window.Buffer || Buffer;
+
 const WalletConnector = () => {
   const [walletAddress, setWalletAddress] = useState("Not connected");
   const [isConnected, setIsConnected] = useState(false);
   const [balance, setBalance] = useState("Unknown");
-  // const [balance, setBalance] = useState<string | null>(null);
   const [recipient, setRecipient] = useState("");
-  const [transactionSignature, setTransactionSignature] = useState("");
   const [amount, setAmount] = useState("");
+  const [transactionSignature, setTransactionSignature] = useState("");
 
   // Memoize the connection object
-  const connection = useMemo(() => new Connection("https://api.devnet.solana.com", "confirmed"), []);
+  const connection = useMemo(
+    () => new Connection("https://api.devnet.solana.com", "confirmed"),
+    []
+  );
 
   const updateBalance = useCallback(async () => {
     if (walletAddress === "Not connected" || !window.solana?.isConnected) return;
     const publicKey = new PublicKey(walletAddress);
     const lamports = await connection.getBalance(publicKey);
-    console.log("i am here ", lamports);
     setBalance((lamports / LAMPORTS_PER_SOL).toFixed(10));
   }, [walletAddress, connection]);
 
@@ -47,7 +55,10 @@ const WalletConnector = () => {
   }, [walletAddress, updateBalance, handleDisconnect]);
 
   const connectWallet = async () => {
-    if (!window.solana) return alert("Please install a Solana wallet like Phantom!");
+    if (!window.solana) {
+      alert("Please install a Solana wallet like Phantom!");
+      return;
+    }
     try {
       await window.solana.connect();
       const publicKey = window.solana.publicKey.toString();
@@ -61,7 +72,10 @@ const WalletConnector = () => {
 
   const handleTransfer = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
-    if (!window.solana?.isConnected) return alert("Please connect a Solana wallet!");
+    if (!window.solana?.isConnected) {
+      alert("Please connect a Solana wallet!");
+      return;
+    }
 
     const senderPublicKey = new PublicKey(walletAddress);
     const recipientPublicKey = new PublicKey(recipient);
@@ -75,17 +89,14 @@ const WalletConnector = () => {
         })
       );
 
-      const { blockhash } = await connection.getLatestBlockhash();
+      const { blockhash, lastValidBlockHeight } = await connection.getLatestBlockhash();
       transaction.recentBlockhash = blockhash;
       transaction.feePayer = senderPublicKey;
 
       const { signature } = await window.solana.signAndSendTransaction(transaction);
-      await connection.confirmTransaction({
-        signature,
-        blockhash,
-        lastValidBlockHeight: (await connection.getLatestBlockhash()).lastValidBlockHeight,
-      });
+      await connection.confirmTransaction({ signature, blockhash, lastValidBlockHeight });
 
+      // **Use** the signature state by rendering it below
       setTransactionSignature(signature);
 
       await axios.post("http://localhost:2001/api/transactions", {
@@ -113,7 +124,11 @@ const WalletConnector = () => {
       </button>
       <p>Wallet Address: {walletAddress}</p>
       <p>Balance: {balance} SOL</p>
-      <form onSubmit={handleTransfer} className={classNames("etrAmnt", { hidden: !isConnected })}>
+
+      <form
+        onSubmit={handleTransfer}
+        className={classNames("etrAmnt", { hidden: !isConnected })}
+      >
         <div>
           <label>Enter amount to transfer (SOL):</label>
           <input
@@ -132,11 +147,19 @@ const WalletConnector = () => {
             required
           />
         </div>
-        <button className="button2" type="submit">Transfer</button>
+        <button className="button2" type="submit">
+          Transfer
+        </button>
       </form>
+
+      {/* 👇 Render the transactionSignature so TypeScript sees it used */}
+      {transactionSignature && (
+        <p>
+          <strong>Transaction Signature:</strong> {transactionSignature}
+        </p>
+      )}
     </div>
   );
 };
 
 export default WalletConnector;
-
